@@ -14,17 +14,17 @@ env = SConscript("godot-cpp/SConstruct")
 
 # Configure build directory to keep object files separate from source
 build_dir = "build_cache/{}".format(env["platform"])
-VariantDir(build_dir, "keychan-chess/modules", duplicate=0)
+VariantDir(build_dir, "C.H.E.S.S/modules", duplicate=0)
 
 # tweak this if you want to use different folders, or more folders, to store your source code in.
-env.Append(CPPPATH=["keychan-chess/modules/"])
+env.Append(CPPPATH=["C.H.E.S.S/modules/"])
 
 # Automatically finds all .cpp files in src/ directory, but build in separate directory
 sources = Glob("{}/*.cpp".format(build_dir))
 
 # Changed library name from "NeuralNet" to "chess_ai" to reflect combined module
 library = env.SharedLibrary(
-    "keychan-chess/bin/libkCC_modules{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
+    "C.H.E.S.S/bin/libkCC_modules{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
     source=sources,
 )
 
