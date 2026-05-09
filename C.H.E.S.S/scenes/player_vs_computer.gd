@@ -4,8 +4,9 @@ extends Node2D
 # Human plays as the starting color.
 # The 'NeuralNet' agent observes the 'Board' state and calculates moves.
 
-const TILE_SIZE = 16
-const BOARD_OFFSET = Vector2(8, 8)
+const TILE_SIZE = 64
+const BOARD_OFFSET = Vector2(32, 32)
+const SPRITE_SCALE = 4.0
 
 # AI Configuration
 const AI_DEPTH = 5  # Maximum search depth for Iterative Deepening
@@ -28,7 +29,7 @@ const PIECE_TYPE_MASK = 7   # 0b00111
 const COLOR_MASK = 24       # 0b11000
 
 var board: Board
-var neural_net: NeuralNet # [NEW] The AI Agent
+var neural_net: Agent # [NEW] The AI Agent
 var sprites = {} # Map<Vector2i, Sprite2D>
 var selected_pos = null # Vector2i (grid coordinates)
 
@@ -84,7 +85,7 @@ func _ready():
 	add_child(board)
 
 	# 2. [NEW] Initialize the AI Agent
-	neural_net = NeuralNet.new()
+	neural_net = Agent.new()
 	add_child(neural_net)
 	# 3. [NEW] Link the Agent to the Board so it can see the pieces
 	neural_net.set_board(board)
@@ -285,6 +286,7 @@ func deselect_piece():
 func spawn_highlight(texture, grid_pos):
 	var s = Sprite2D.new()
 	s.texture = texture
+	s.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	s.position = grid_to_pixel(Vector2(grid_pos.x, grid_pos.y))
 	$Highlights.add_child(s)
 	highlight_sprites.append(s)
@@ -301,12 +303,14 @@ func update_last_move_visuals(start: Vector2i, end: Vector2i):
 	
 	var s1 = Sprite2D.new()
 	s1.texture = tex_moved
+	s1.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	s1.position = grid_to_pixel(Vector2(start.x, start.y))
 	$Highlights.add_child(s1)
 	last_move_sprites.append(s1)
-	
+
 	var s2 = Sprite2D.new()
 	s2.texture = tex_moved
+	s2.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	s2.position = grid_to_pixel(Vector2(end.x, end.y))
 	$Highlights.add_child(s2)
 	last_move_sprites.append(s2)
@@ -330,6 +334,7 @@ func refresh_visuals():
 				else:
 					var s = Sprite2D.new()
 					s.texture = textures[color][type]
+					s.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 					s.position = grid_to_pixel(Vector2(x, y))
 					$Pieces.add_child(s)
 					sprites[pos] = s

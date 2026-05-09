@@ -1,14 +1,14 @@
-[gd_scene load_steps=3 format=3 uid="uid://bxebxg8uuppol"]
+[gd_scene format=3 uid="uid://bxebxg8uuppol"]
 
-[ext_resource type="Script" uid="uid://cal232702oiau" path="res://scenes/main.gd" id="1_o5qli"]
+[ext_resource type="Script" path="res://scenes/main.gd" id="1_o5qli"]
 [ext_resource type="Texture2D" uid="uid://5ce14jlmthig" path="res://assets/textures/backgrounds/board0.png" id="2_0wfyh"]
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=1121469868]
 script = ExtResource("1_o5qli")
 
-[node name="Board0" type="Sprite2D" parent="."]
+[node name="Board0" type="Sprite2D" parent="." unique_id=1630700560]
 position = Vector2(256, 256)
 scale = Vector2(4, 4)
 texture = ExtResource("2_0wfyh")
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1133876526]

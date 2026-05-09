@@ -4,8 +4,9 @@ extends Node2D
 # Two AI agents play against each other.
 # Supports training mode (save models) and inference mode (load/use existing models).
 
-const TILE_SIZE = 16
-const BOARD_OFFSET = Vector2(8, 8)
+const TILE_SIZE = 64
+const BOARD_OFFSET = Vector2(32, 32)
+const SPRITE_SCALE = 4.0
 
 # AI Configuration
 const AI_DEPTH = 5  # Maximum search depth for Iterative Deepening
@@ -257,12 +258,14 @@ func update_last_move_visuals(start: Vector2i, end: Vector2i):
 
 	var s1 = Sprite2D.new()
 	s1.texture = tex_moved
+	s1.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	s1.position = grid_to_pixel(Vector2(start.x, start.y))
 	$Highlights.add_child(s1)
 	last_move_sprites.append(s1)
 
 	var s2 = Sprite2D.new()
 	s2.texture = tex_moved
+	s2.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	s2.position = grid_to_pixel(Vector2(end.x, end.y))
 	$Highlights.add_child(s2)
 	last_move_sprites.append(s2)
@@ -286,6 +289,7 @@ func refresh_visuals():
 				else:
 					var s = Sprite2D.new()
 					s.texture = textures[color][type]
+					s.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 					s.position = grid_to_pixel(Vector2(x, y))
 					$Pieces.add_child(s)
 					sprites[pos] = s

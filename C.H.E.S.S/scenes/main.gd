@@ -4,7 +4,7 @@ extends Node2D
 const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 const CUSTOM_FONT_PATH = "res://assets/fonts/SheepyK4.ttc"
-const CUSTOM_FONT_SIZE = 8
+const CUSTOM_FONT_SIZE = 16
 
 # UI Components
 var ui_layer: CanvasLayer
@@ -22,7 +22,7 @@ func _ready():
 	# Create a CanvasLayer to ensure UI stays on top and aligned
 	ui_layer = CanvasLayer.new()
 	add_child(ui_layer)
-	# setup_main_menu_ui()
+	setup_main_menu_ui()
 
 func setup_main_menu_ui():
 	# Setup Custom Theme
@@ -47,7 +47,7 @@ func setup_main_menu_ui():
 	panel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	
 	panel.anchors_preset = Control.PRESET_CENTER
-	panel.custom_minimum_size = Vector2(85, 55)  # Slightly wider to accommodate 3 buttons
+	panel.custom_minimum_size = Vector2(256, 170)  # Larger so the popup takes a meaningful chunk of the 512-design canvas
 	
 	# Center the panel
 	panel.position = Vector2(
@@ -120,7 +120,7 @@ func setup_main_menu_ui():
 	# fen_input.focus_mode = Control.FOCUS_NONE
 	fen_input.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	fen_input.placeholder_text = "Paste custom FEN here..."
-	fen_input.custom_minimum_size.x = 100
+	fen_input.custom_minimum_size.x = 220
 	vbox.add_child(fen_input)
 	
 	# Bottom Controls (Default & Play)
@@ -145,7 +145,7 @@ func setup_main_menu_ui():
 	play_btn.text = "Play"
 	play_btn.focus_mode = Control.FOCUS_NONE
 	play_btn.pressed.connect(_on_play_pressed)
-	play_btn.custom_minimum_size.x = 20
+	play_btn.custom_minimum_size.x = 44
 	bottom_hbox.add_child(play_btn)
 	
 	vbox.add_child(HSeparator.new())

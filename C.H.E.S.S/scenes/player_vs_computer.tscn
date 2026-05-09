@@ -1,11 +1,12 @@
-[gd_scene load_steps=3 format=3 uid="uid://chb38x2l4seu1"]
+[gd_scene format=3 uid="uid://chb38x2l4seu1"]
 
-[ext_resource type="Script" uid="uid://dbcxrleo5uu1l" path="res://scenes/player_vs_computer.gd" id="1_bvkcf"]
+[ext_resource type="Script" path="res://scenes/player_vs_computer.gd" id="1_bvkcf"]
 [ext_resource type="Texture2D" uid="uid://5ce14jlmthig" path="res://assets/textures/backgrounds/board0.png" id="1_fsna5"]
 
-[node name="PlayerVsComputer" type="Node2D"]
+[node name="PlayerVsComputer" type="Node2D" unique_id=1874375326]
 script = ExtResource("1_bvkcf")
 
-[node name="Board0" type="Sprite2D" parent="."]
-position = Vector2(64, 64)
+[node name="Board0" type="Sprite2D" parent="." unique_id=1226215061]
+position = Vector2(256, 256)
+scale = Vector2(4, 4)
 texture = ExtResource("1_fsna5")

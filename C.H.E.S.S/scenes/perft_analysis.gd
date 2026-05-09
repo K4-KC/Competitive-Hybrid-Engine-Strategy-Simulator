@@ -1,7 +1,8 @@
 extends Node2D
 
-const TILE_SIZE = 16
-const BOARD_OFFSET = Vector2(8, 8)
+const TILE_SIZE = 64
+const BOARD_OFFSET = Vector2(32, 32)
+const SPRITE_SCALE = 4.0
 
 const PIECE_NONE = 0
 const PIECE_PAWN = 1
@@ -214,6 +215,7 @@ func deselect_piece():
 func spawn_highlight(texture, grid_pos):
 	var s = Sprite2D.new()
 	s.texture = texture
+	s.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	s.position = grid_to_pixel(Vector2(grid_pos.x, grid_pos.y))
 	$Highlights.add_child(s)
 	highlight_sprites.append(s)
@@ -228,12 +230,14 @@ func update_last_move_visuals(start: Vector2i, end: Vector2i):
 	
 	var s1 = Sprite2D.new()
 	s1.texture = tex_moved
+	s1.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	s1.position = grid_to_pixel(Vector2(start.x, start.y))
 	$Highlights.add_child(s1)
 	last_move_sprites.append(s1)
-	
+
 	var s2 = Sprite2D.new()
 	s2.texture = tex_moved
+	s2.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	s2.position = grid_to_pixel(Vector2(end.x, end.y))
 	$Highlights.add_child(s2)
 	last_move_sprites.append(s2)
@@ -257,6 +261,7 @@ func refresh_visuals():
 				else:
 					var s = Sprite2D.new()
 					s.texture = textures[color][type]
+					s.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 					s.position = grid_to_pixel(Vector2(x, y))
 					$Pieces.add_child(s)
 					sprites[pos] = s

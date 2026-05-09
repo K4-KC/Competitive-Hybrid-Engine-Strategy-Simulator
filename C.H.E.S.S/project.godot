@@ -12,14 +12,26 @@ config_version=5
 
 config/name="C.H.E.S.S."
 run/main_scene="uid://bxebxg8uuppol"
-config/features=PackedStringArray("4.5", "Forward Plus")
+config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
+config/windows_native_icon="res://chess.ico"
+
+[autoload]
+
+WindowDpi="*res://window_dpi.gd"
 
 [display]
 
 window/size/viewport_width=512
 window/size/viewport_height=512
+window/size/mode=0
 window/size/resizable=false
+window/stretch/mode="canvas_items"
+window/stretch/scale_mode="integer"
+
+[editor_plugins]
+
+enabled=PackedStringArray()
 
 [file_customization]
 
