@@ -732,41 +732,50 @@ void Board::make_move_fast(const FastMove &m) {
     uint8_t moving_piece = squares[m.from];
     uint8_t piece_type = GET_PIECE_TYPE(moving_piece);
     uint8_t color = GET_COLOR(moving_piece);
-    
+
     if (en_passant_target < 64) {
         hash_en_passant(en_passant_target);
     }
-    
+
     if (m.flags & 2) {
         int capture_sq = m.to + ((color == COLOR_WHITE) ? -8 : 8);
+        remove_piece_from_list(capture_sq, squares[capture_sq]);
         hash_piece(squares[capture_sq], capture_sq);
         squares[capture_sq] = 0;
     }
-    
+
     if ((m.flags & 1) && !(m.flags & 2)) {
+        remove_piece_from_list(m.to, squares[m.to]);
         hash_piece(squares[m.to], m.to);
     }
-    
+
     if (m.flags & 4) {
         int move_dist = (int)m.to - (int)m.from;
         if (move_dist == 2) {
-            hash_piece(squares[m.from + 3], m.from + 3);
-            hash_piece(squares[m.from + 3], m.from + 1);
-            squares[m.from + 1] = squares[m.from + 3];
+            uint8_t rook = squares[m.from + 3];
+            remove_piece_from_list(m.from + 3, rook);
+            hash_piece(rook, m.from + 3);
+            hash_piece(rook, m.from + 1);
+            squares[m.from + 1] = rook;
             squares[m.from + 3] = 0;
+            add_piece_to_list(m.from + 1, rook);
         } else {
-            hash_piece(squares[m.from - 4], m.from - 4);
-            hash_piece(squares[m.from - 4], m.from - 1);
-            squares[m.from - 1] = squares[m.from - 4];
+            uint8_t rook = squares[m.from - 4];
+            remove_piece_from_list(m.from - 4, rook);
+            hash_piece(rook, m.from - 4);
+            hash_piece(rook, m.from - 1);
+            squares[m.from - 1] = rook;
             squares[m.from - 4] = 0;
+            add_piece_to_list(m.from - 1, rook);
         }
     }
-    
+
     hash_piece(moving_piece, m.from);
-    
+
+    remove_piece_from_list(m.from, moving_piece);
     squares[m.to] = moving_piece;
     squares[m.from] = 0;
-    
+
     uint8_t promo_piece = (m.flags >> 3) & 7;
     if (promo_piece) {
         squares[m.to] = MAKE_PIECE(promo_piece, color);
@@ -774,6 +783,7 @@ void Board::make_move_fast(const FastMove &m) {
     } else {
         hash_piece(moving_piece, m.to);
     }
+    add_piece_to_list(m.to, squares[m.to]);
     
     if (piece_type == PIECE_KING) {
         if (color == COLOR_WHITE) white_king_pos = m.to;
@@ -812,29 +822,42 @@ void Board::unmake_move_fast(const FastMove &m, uint8_t ep_before, bool castling
     uint8_t moving_piece = squares[m.to];
     uint8_t color = GET_COLOR(moving_piece);
     uint8_t piece_type = GET_PIECE_TYPE(moving_piece);
-    
+
     uint8_t promo_piece = (m.flags >> 3) & 7;
     if (promo_piece) {
         moving_piece = MAKE_PIECE(PIECE_PAWN, color);
         piece_type = PIECE_PAWN;
     }
-    
+
+    remove_piece_from_list(m.to, squares[m.to]);
     squares[m.from] = moving_piece;
     squares[m.to] = (m.flags & 2) ? 0 : m.captured;
-    
+    add_piece_to_list(m.from, moving_piece);
+
+    if ((m.flags & 1) && !(m.flags & 2)) {
+        if (!IS_EMPTY(m.captured)) add_piece_to_list(m.to, m.captured);
+    }
+
     if (m.flags & 2) {
         int capture_sq = m.to + ((color == COLOR_WHITE) ? -8 : 8);
         squares[capture_sq] = m.captured;
+        if (!IS_EMPTY(m.captured)) add_piece_to_list(capture_sq, m.captured);
     }
-    
+
     if (m.flags & 4) {
         int move_dist = (int)m.to - (int)m.from;
         if (move_dist == 2) {
-            squares[m.from + 3] = squares[m.from + 1];
+            uint8_t rook = squares[m.from + 1];
+            remove_piece_from_list(m.from + 1, rook);
+            squares[m.from + 3] = rook;
             squares[m.from + 1] = 0;
+            add_piece_to_list(m.from + 3, rook);
         } else {
-            squares[m.from - 4] = squares[m.from - 1];
+            uint8_t rook = squares[m.from - 1];
+            remove_piece_from_list(m.from - 1, rook);
+            squares[m.from - 4] = rook;
             squares[m.from - 1] = 0;
+            add_piece_to_list(m.from - 4, rook);
         }
     }
     
@@ -1100,39 +1123,47 @@ void Board::make_move_internal(uint8_t from, uint8_t to, Move &move_record) {
         move_record.is_en_passant = true;
         int capture_sq = to + ((color == COLOR_WHITE) ? -8 : 8);
         move_record.captured_piece = squares[capture_sq];
+        remove_piece_from_list(capture_sq, squares[capture_sq]);
         hash_piece(squares[capture_sq], capture_sq);
         squares[capture_sq] = 0;
     }
-    
+
     if (!move_record.is_en_passant && !IS_EMPTY(squares[to])) {
+        remove_piece_from_list(to, squares[to]);
         hash_piece(squares[to], to);
     }
-    
+
     if (piece_type == PIECE_KING) {
         int move_dist = (int)to - (int)from;
-        
+
         if (move_dist == 2) {
             move_record.is_castling = true;
             uint8_t rook = squares[from + 3];
+            remove_piece_from_list(from + 3, rook);
             hash_piece(rook, from + 3);
             hash_piece(rook, from + 1);
             squares[from + 3] = 0;
             squares[from + 1] = rook;
+            add_piece_to_list(from + 1, rook);
         } else if (move_dist == -2) {
             move_record.is_castling = true;
             uint8_t rook = squares[from - 4];
+            remove_piece_from_list(from - 4, rook);
             hash_piece(rook, from - 4);
             hash_piece(rook, from - 1);
             squares[from - 4] = 0;
             squares[from - 1] = rook;
+            add_piece_to_list(from - 1, rook);
         }
     }
-    
+
     hash_piece(moving_piece, from);
     hash_piece(moving_piece, to);
-    
+
+    remove_piece_from_list(from, moving_piece);
     squares[to] = moving_piece;
     squares[from] = 0;
+    add_piece_to_list(to, moving_piece);
     
     if (piece_type == PIECE_KING) {
         if (color == COLOR_WHITE) white_king_pos = to;
@@ -1181,30 +1212,39 @@ void Board::revert_move_internal(const Move &move) {
     uint8_t moving_piece = squares[move.to];
     uint8_t color = GET_COLOR(moving_piece);
     uint8_t piece_type = GET_PIECE_TYPE(moving_piece);
-    
+
     if (move.promotion_piece != 0) {
         moving_piece = MAKE_PIECE(PIECE_PAWN, color);
     }
-    
+
+    remove_piece_from_list(move.to, squares[move.to]);
     squares[move.from] = moving_piece;
     squares[move.to] = move.captured_piece;
-    
+    add_piece_to_list(move.from, moving_piece);
+
     if (move.is_en_passant) {
         squares[move.to] = 0;
         int capture_sq = move.to + ((color == COLOR_WHITE) ? -8 : 8);
         squares[capture_sq] = move.captured_piece;
+        if (!IS_EMPTY(move.captured_piece)) add_piece_to_list(capture_sq, move.captured_piece);
+    } else if (!IS_EMPTY(move.captured_piece)) {
+        add_piece_to_list(move.to, move.captured_piece);
     }
-    
+
     if (move.is_castling) {
         int move_dist = (int)move.to - (int)move.from;
         if (move_dist == 2) {
             uint8_t rook = squares[move.from + 1];
+            remove_piece_from_list(move.from + 1, rook);
             squares[move.from + 1] = 0;
             squares[move.from + 3] = rook;
+            add_piece_to_list(move.from + 3, rook);
         } else {
             uint8_t rook = squares[move.from - 1];
+            remove_piece_from_list(move.from - 1, rook);
             squares[move.from - 1] = 0;
             squares[move.from - 4] = rook;
+            add_piece_to_list(move.from - 4, rook);
         }
     }
     
