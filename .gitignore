@@ -25,3 +25,9 @@ src/*.obj
 
 *.TMP
 C.H.E.S.S/bin/~libkCC_modules.windows.template_debug.x86_64.dll
+
+# macOS
+.DS_Store
+
+# Godot macOS export output (built into project root rather than exports/)
+/C.H.E.S.S/C.H.E.S.S. - Competitive Hybrid Engine Strategy Simulator (macOS)/
