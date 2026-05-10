@@ -34,7 +34,9 @@ build_cache/
 # C.H.E.S.S
 C.H.E.S.S/.godot/
 C.H.E.S.S/*.translation
-C.H.E.S.S/bin/
+C.H.E.S.S/bin/*
+!C.H.E.S.S/bin/*.gdextension
+!C.H.E.S.S/bin/*.gdextension.uid
 C.H.E.S.S/exports/
 C.H.E.S.S/addons/
 
