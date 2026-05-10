@@ -216,22 +216,22 @@ echo ""
 # List built binaries
 if [ "$BUILD_WINDOWS" = true ]; then
     echo "Windows binaries (.dll) compiled:"
-    [ "$BUILD_DEBUG" = true ] && echo "  - Debug: keychan-chess/bin/"
-    [ "$BUILD_RELEASE" = true ] && echo "  - Release: keychan-chess/bin/"
+    [ "$BUILD_DEBUG" = true ] && echo "  - Debug: C.H.E.S.S/bin/"
+    [ "$BUILD_RELEASE" = true ] && echo "  - Release: C.H.E.S.S/bin/"
 fi
 
 if [ "$BUILD_LINUX" = true ]; then
     echo "Linux binaries (.so) compiled:"
-    [ "$BUILD_DEBUG" = true ] && echo "  - Debug: keychan-chess/bin/"
-    [ "$BUILD_RELEASE" = true ] && echo "  - Release: keychan-chess/bin/"
+    [ "$BUILD_DEBUG" = true ] && echo "  - Debug: C.H.E.S.S/bin/"
+    [ "$BUILD_RELEASE" = true ] && echo "  - Release: C.H.E.S.S/bin/"
 fi
 
 if [ "$BUILD_MACOS" = true ]; then
     echo "macOS binaries (.dylib) compiled:"
-    [ "$BUILD_DEBUG" = true ] && echo "  - Debug: keychan-chess/bin/"
-    [ "$BUILD_RELEASE" = true ] && echo "  - Release: keychan-chess/bin/"
+    [ "$BUILD_DEBUG" = true ] && echo "  - Debug: C.H.E.S.S/bin/"
+    [ "$BUILD_RELEASE" = true ] && echo "  - Release: C.H.E.S.S/bin/"
 fi
 
 echo ""
-echo "All binaries are located in the 'keychan-chess/bin/' directory."
+echo "All binaries are located in the 'C.H.E.S.S/bin/' directory."
 echo "===================================================================="

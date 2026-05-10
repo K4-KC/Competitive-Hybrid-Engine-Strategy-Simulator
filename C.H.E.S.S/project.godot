@@ -20,6 +20,10 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="uid://bbhm2rdus2gil"
 config/windows_native_icon="res://chess.ico"
 
+[autoload]
+
+WindowDpi="*res://window_dpi.gd"
+
 [display]
 
 window/size/viewport_width=480

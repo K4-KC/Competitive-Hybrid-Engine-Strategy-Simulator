@@ -43,3 +43,6 @@ stockfish/
 godot-cpp/
 *.TMP
 *.code-workspace
+
+# Godot macOS export output (built into project root rather than exports/)
+/C.H.E.S.S/C.H.E.S.S. - Competitive Hybrid Engine Strategy Simulator (macOS)/

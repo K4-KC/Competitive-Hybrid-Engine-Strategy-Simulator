@@ -4,6 +4,11 @@ import sys
 
 env = SConscript("godot-cpp/SConstruct")
 
+# Use .so suffix on macOS too, so the binary name matches the WSL osxcross
+# output and gdextension entries (which reference .so).
+if env["platform"] == "macos":
+    env["SHLIBSUFFIX"] = ".so"
+
 # For reference:
 # - CCFLAGS are compilation flags shared between C and C++
 # - CFLAGS are for C-specific compilation flags
