@@ -1,11 +1,11 @@
-[gd_scene load_steps=3 format=3 uid="uid://oi5k71vlejnx"]
+[gd_scene format=3 uid="uid://oi5k71vlejnx"]
 
-[ext_resource type="Script" uid="uid://c542ojn3b8swj" path="res://scenes/computer_vs_computer.gd" id="1_66j16"]
-[ext_resource type="Texture2D" uid="uid://5ce14jlmthig" path="res://assets/textures/backgrounds/board0.png" id="1_d4laf"]
+[ext_resource type="Script" uid="uid://c542ojn3b8swj" path="res://scenes/computer_vs_computer/computer_vs_computer.gd" id="1_66j16"]
+[ext_resource type="Texture2D" uid="uid://bca7gvmgnrvj8" path="res://assets/textures/backgrounds/board0.png" id="1_d4laf"]
 
-[node name="ComputerVsComputer" type="Node2D"]
+[node name="ComputerVsComputer" type="Node2D" unique_id=1419108777]
 script = ExtResource("1_66j16")
 
-[node name="Board0" type="Sprite2D" parent="."]
+[node name="Board0" type="Sprite2D" parent="." unique_id=342088585]
 position = Vector2(64, 64)
 texture = ExtResource("1_d4laf")

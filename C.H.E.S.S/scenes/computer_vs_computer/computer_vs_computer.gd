@@ -54,15 +54,10 @@ var current_thinking_color: int = 0  # Which agent is thinking
 # Temporary visual helpers
 var last_move_sprites = []
 
-# Textures
-var tex_moved = preload("res://assets/sprites/highlights/moved.png")
-
-var textures = {
-	0: { "p": preload("res://assets/sprites/pieces/p0.png"), "r": preload("res://assets/sprites/pieces/r0.png"), "n": preload("res://assets/sprites/pieces/n0.png"),
-		 "b": preload("res://assets/sprites/pieces/b0.png"), "q": preload("res://assets/sprites/pieces/q0.png"), "k": preload("res://assets/sprites/pieces/k0.png") },
-	1: { "p": preload("res://assets/sprites/pieces/p1.png"), "r": preload("res://assets/sprites/pieces/r1.png"), "n": preload("res://assets/sprites/pieces/n1.png"),
-		 "b": preload("res://assets/sprites/pieces/b1.png"), "q": preload("res://assets/sprites/pieces/q1.png"), "k": preload("res://assets/sprites/pieces/k1.png") }
-}
+# Sprite atlas (board_sheet.png + board_sheet.json)
+var slices_data = {}
+var texture_cache = {}
+var spritesheet_texture: Texture2D
 
 # UI nodes
 var thinking_label: Label = null
@@ -79,6 +74,9 @@ var total_training_loss = 0.0
 var num_training_examples = 0
 
 func _ready():
+	# 0. Load the spritesheet atlas before anything that needs textures
+	load_aseprite_assets("res://assets/sprites/board_sheet.json", "res://assets/sprites/board_sheet.png")
+
 	var hl_node = Node2D.new()
 	hl_node.name = "Highlights"
 	add_child(hl_node)
@@ -194,6 +192,48 @@ func setup_agents():
 			white_agent.set_use_neural_network(false)
 			black_agent.set_use_neural_network(false)
 
+# --- Aseprite atlas loading ---
+
+func load_aseprite_assets(json_path: String, image_path: String):
+	spritesheet_texture = load(image_path)
+	if not spritesheet_texture:
+		push_error("Failed to load spritesheet at: " + image_path)
+		return
+
+	if not FileAccess.file_exists(json_path):
+		push_error("JSON file not found: " + json_path)
+		return
+
+	var file = FileAccess.open(json_path, FileAccess.READ)
+	var json_text = file.get_as_text()
+	var json = JSON.new()
+	var error = json.parse(json_text)
+	if error != OK:
+		push_error("JSON Parse Error: " + json.get_error_message())
+		return
+
+	var data = json.data
+	if data.has("meta") and data["meta"].has("slices"):
+		for slice in data["meta"]["slices"]:
+			var s_name = slice["name"]
+			var bounds = slice["keys"][0]["bounds"]
+			slices_data[s_name] = Rect2(bounds["x"], bounds["y"], bounds["w"], bounds["h"])
+	else:
+		push_error("No slices found in JSON meta data!")
+
+func get_slice_texture(slice_name: String) -> AtlasTexture:
+	if texture_cache.has(slice_name):
+		return texture_cache[slice_name]
+
+	var atlas = AtlasTexture.new()
+	atlas.atlas = spritesheet_texture
+	atlas.region = slices_data[slice_name]
+	texture_cache[slice_name] = atlas
+	return atlas
+
+func piece_texture(color: int, type: String) -> AtlasTexture:
+	return get_slice_texture(type + str(color))
+
 func setup_ui():
 	var canvas = CanvasLayer.new()
 	add_child(canvas)
@@ -255,14 +295,15 @@ func update_last_move_visuals(start: Vector2i, end: Vector2i):
 		s.queue_free()
 	last_move_sprites.clear()
 
+	var moved_tex = get_slice_texture("moved")
 	var s1 = Sprite2D.new()
-	s1.texture = tex_moved
+	s1.texture = moved_tex
 	s1.position = grid_to_pixel(Vector2(start.x, start.y))
 	$Highlights.add_child(s1)
 	last_move_sprites.append(s1)
 
 	var s2 = Sprite2D.new()
-	s2.texture = tex_moved
+	s2.texture = moved_tex
 	s2.position = grid_to_pixel(Vector2(end.x, end.y))
 	$Highlights.add_child(s2)
 	last_move_sprites.append(s2)
@@ -281,11 +322,12 @@ func refresh_visuals():
 				active_positions.append(pos)
 				var type = data["type"]
 				var color = data["color"]
+				var piece_tex = piece_texture(color, type)
 				if sprites.has(pos):
-					sprites[pos].texture = textures[color][type]
+					sprites[pos].texture = piece_tex
 				else:
 					var s = Sprite2D.new()
-					s.texture = textures[color][type]
+					s.texture = piece_tex
 					s.position = grid_to_pixel(Vector2(x, y))
 					$Pieces.add_child(s)
 					sprites[pos] = s

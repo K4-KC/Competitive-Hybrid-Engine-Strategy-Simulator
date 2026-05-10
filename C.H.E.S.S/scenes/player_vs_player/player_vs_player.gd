@@ -1,8 +1,7 @@
 extends Node2D
 
-const TILE_SIZE = 64
-const BOARD_OFFSET = Vector2(32, 32)
-const SPRITE_SCALE = 4.0
+const TILE_SIZE = 16
+const BOARD_OFFSET = Vector2(8, 8)
 
 # Piece type constants (must match board.h)
 const PIECE_NONE = 0
@@ -29,11 +28,20 @@ var selected_pos = null # Vector2i (grid coordinates)
 var highlight_sprites = []
 var last_move_sprites = []
 
-# Textures
-var tex_move = preload("res://assets/sprites/highlights/move.png")
-var tex_capture = preload("res://assets/sprites/highlights/capture.png")
-var tex_moving = preload("res://assets/sprites/highlights/moving.png")
-var tex_moved = preload("res://assets/sprites/highlights/moved.png")
+# Sprite atlas (board_sheet.png + board_sheet.json)
+var slices_data = {}
+var texture_cache = {}
+var spritesheet_texture: Texture2D
+
+# UI nodes and state
+var promotion_panel = null
+var promotion_buttons = {}
+var is_promoting = false
+var pending_promotion_move_start = null
+var pending_promotion_move_end = null
+
+# History for undo functionality
+var fen_history = []
 
 func is_christmas_season() -> bool:
 	var date = Time.get_date_dict_from_system()
@@ -41,60 +49,86 @@ func is_christmas_season() -> bool:
 	var day = date["day"]
 	return (month == 12 and day >= 1) or (month == 1 and day <= 6)
 
-var textures = {
-	0: { "p": preload("res://assets/sprites/pieces/p0.png"), "r": preload("res://assets/sprites/pieces/r0.png"), "n": preload("res://assets/sprites/pieces/n0.png"),
-		 "b": preload("res://assets/sprites/pieces/b0.png"), "q": preload("res://assets/sprites/pieces/q0.png"),
-		 "k": preload("res://assets/sprites/pieces/k0_santa.png") if is_christmas_season() else preload("res://assets/sprites/pieces/k0.png") },
-	1: { "p": preload("res://assets/sprites/pieces/p1.png"), "r": preload("res://assets/sprites/pieces/r1.png"), "n": preload("res://assets/sprites/pieces/n1.png"),
-		 "b": preload("res://assets/sprites/pieces/b1.png"), "q": preload("res://assets/sprites/pieces/q1.png"),
-		 "k": preload("res://assets/sprites/pieces/k1_santa.png") if is_christmas_season() else preload("res://assets/sprites/pieces/k1.png") }
-}
-
-# UI nodes and state
-var promotion_panel = null
-var promotion_buttons = {} 
-var is_promoting = false
-var pending_promotion_move_start = null 
-var pending_promotion_move_end = null
-
-# History for undo functionality
-var fen_history = []
-
 func _ready():
+	# 0. Load the spritesheet atlas before anything that needs textures
+	load_aseprite_assets("res://assets/sprites/board_sheet.json", "res://assets/sprites/board_sheet.png")
+
 	var hl_node = Node2D.new()
 	hl_node.name = "Highlights"
 	add_child(hl_node)
-	
+
 	var pieces_node = Node2D.new()
 	pieces_node.name = "Pieces"
 	add_child(pieces_node)
 
 	board = Board.new()
 	add_child(board)
-	
+
 	setup_ui()
 
 	# Default to standard start if no FEN was passed
 	var start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-	
-	# Check if the Main Menu passed us a FEN string
 	if get_tree().root.has_meta("start_fen"):
 		start_fen = get_tree().root.get_meta("start_fen")
-	
+
 	board.setup_board(start_fen)
 	fen_history.append(board.get_fen())
 	refresh_visuals()
-	
+
 	print("PvP Mode Ready. White to move.")
 	print(start_fen)
+
+# --- Aseprite atlas loading ---
+
+func load_aseprite_assets(json_path: String, image_path: String):
+	spritesheet_texture = load(image_path)
+	if not spritesheet_texture:
+		push_error("Failed to load spritesheet at: " + image_path)
+		return
+
+	if not FileAccess.file_exists(json_path):
+		push_error("JSON file not found: " + json_path)
+		return
+
+	var file = FileAccess.open(json_path, FileAccess.READ)
+	var json_text = file.get_as_text()
+	var json = JSON.new()
+	var error = json.parse(json_text)
+	if error != OK:
+		push_error("JSON Parse Error: " + json.get_error_message())
+		return
+
+	var data = json.data
+	if data.has("meta") and data["meta"].has("slices"):
+		for slice in data["meta"]["slices"]:
+			var s_name = slice["name"]
+			var bounds = slice["keys"][0]["bounds"]
+			slices_data[s_name] = Rect2(bounds["x"], bounds["y"], bounds["w"], bounds["h"])
+	else:
+		push_error("No slices found in JSON meta data!")
+
+func get_slice_texture(slice_name: String) -> AtlasTexture:
+	if texture_cache.has(slice_name):
+		return texture_cache[slice_name]
+
+	var atlas = AtlasTexture.new()
+	atlas.atlas = spritesheet_texture
+	atlas.region = slices_data[slice_name]
+	texture_cache[slice_name] = atlas
+	return atlas
+
+func piece_texture(color: int, type: String) -> AtlasTexture:
+	if type == "k" and is_christmas_season():
+		return get_slice_texture("k" + str(color) + "_santa")
+	return get_slice_texture(type + str(color))
 
 func setup_ui():
 	var canvas = CanvasLayer.new()
 	add_child(canvas)
 	promotion_panel = PanelContainer.new()
 	promotion_panel.visible = false
-	promotion_panel.anchors_preset = Control.PRESET_CENTER 
-	promotion_panel.position = Vector2(10, 52) 
+	promotion_panel.anchors_preset = Control.PRESET_CENTER
+	promotion_panel.position = Vector2(10, 52)
 	canvas.add_child(promotion_panel)
 	var hbox = HBoxContainer.new()
 	promotion_panel.add_child(hbox)
@@ -127,10 +161,10 @@ func get_data_at(grid_pos: Vector2i) -> Dictionary:
 func decode_piece(piece_value: int) -> Dictionary:
 	var piece_type = piece_value & PIECE_TYPE_MASK
 	var color_bits = piece_value & COLOR_MASK
-	
+
 	if piece_type == PIECE_NONE:
 		return {}
-	
+
 	var type_str = ""
 	match piece_type:
 		PIECE_PAWN: type_str = "p"
@@ -139,7 +173,7 @@ func decode_piece(piece_value: int) -> Dictionary:
 		PIECE_ROOK: type_str = "r"
 		PIECE_QUEEN: type_str = "q"
 		PIECE_KING: type_str = "k"
-	
+
 	var color = 0 if color_bits == COLOR_WHITE else 1
 	return {"type": type_str, "color": color}
 
@@ -155,7 +189,7 @@ func get_valid_moves_for_piece(grid_pos: Vector2i) -> Array:
 
 func _input(event):
 	if is_promoting: return
-	
+
 	if event is InputEventKey and event.pressed and event.keycode == KEY_LEFT:
 		revert_last_move()
 		return
@@ -169,30 +203,27 @@ func _input(event):
 				deselect_piece()
 			else:
 				var valid_targets = get_valid_moves_for_piece(selected_pos)
-				
+
 				if clicked_pos in valid_targets:
 					var move_start = selected_pos
 					var move_end = clicked_pos
 					var start_square = grid_to_square(selected_pos)
 					var end_square = grid_to_square(clicked_pos)
-					
+
 					var result = board.attempt_move(start_square, end_square)
 					if result == 1:
-						# Successful move
 						update_last_move_visuals(move_start, move_end)
 						deselect_piece()
 						refresh_visuals()
 						record_fen()
 						check_game_over()
 					elif result == 2:
-						# Promotion pending
 						pending_promotion_move_start = move_start
 						pending_promotion_move_end = move_end
 						refresh_visuals()
 						var piece_data = get_data_at(move_start)
 						start_promotion(piece_data)
 				else:
-					# Clicked invalid target; check if selecting friendly piece
 					var p = get_data_at(clicked_pos)
 					if not p.is_empty() and p.color == board.get_turn():
 						select_piece(clicked_pos)
@@ -206,33 +237,33 @@ func _input(event):
 func select_piece(pos: Vector2i):
 	deselect_piece()
 	selected_pos = pos
-	spawn_highlight(tex_moving, pos)
-	
+	spawn_highlight(get_slice_texture("selected"), pos)
+
 	var valid_moves = get_valid_moves_for_piece(pos)
 	for target in valid_moves:
 		var target_data = get_data_at(target)
 		var is_capture = not target_data.is_empty()
-		
+
 		# En passant check
 		if target_data.is_empty():
 			var piece_data = get_data_at(pos)
 			if piece_data.has("type") and piece_data.type == "p":
 				if target.x != pos.x:
 					is_capture = true
-		
+
 		if is_capture:
-			spawn_highlight(tex_capture, target)
+			spawn_highlight(get_slice_texture("capture"), target)
 		else:
-			spawn_highlight(tex_move, target)
+			spawn_highlight(get_slice_texture("move"), target)
 
 func deselect_piece():
 	selected_pos = null
 	clear_temp_highlights()
 
 func spawn_highlight(texture, grid_pos):
+	if texture == null: return
 	var s = Sprite2D.new()
 	s.texture = texture
-	s.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	s.position = grid_to_pixel(Vector2(grid_pos.x, grid_pos.y))
 	$Highlights.add_child(s)
 	highlight_sprites.append(s)
@@ -247,22 +278,20 @@ func update_last_move_visuals(start: Vector2i, end: Vector2i):
 		s.queue_free()
 	last_move_sprites.clear()
 
+	var moved_tex = get_slice_texture("moved")
 	var s1 = Sprite2D.new()
-	s1.texture = tex_moved
-	s1.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
+	s1.texture = moved_tex
 	s1.position = grid_to_pixel(Vector2(start.x, start.y))
 	$Highlights.add_child(s1)
 	last_move_sprites.append(s1)
 
 	var s2 = Sprite2D.new()
-	s2.texture = tex_moved
-	s2.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
+	s2.texture = moved_tex
 	s2.position = grid_to_pixel(Vector2(end.x, end.y))
 	$Highlights.add_child(s2)
 	last_move_sprites.append(s2)
 
 func refresh_visuals():
-	var active_positions = []
 	for x in range(8):
 		for y in range(8):
 			var pos = Vector2i(x, y)
@@ -272,15 +301,14 @@ func refresh_visuals():
 					sprites[pos].queue_free()
 					sprites.erase(pos)
 			else:
-				active_positions.append(pos)
 				var type = data["type"]
 				var color = data["color"]
+				var piece_tex = piece_texture(color, type)
 				if sprites.has(pos):
-					sprites[pos].texture = textures[color][type]
+					sprites[pos].texture = piece_tex
 				else:
 					var s = Sprite2D.new()
-					s.texture = textures[color][type]
-					s.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
+					s.texture = piece_tex
 					s.position = grid_to_pixel(Vector2(x, y))
 					$Pieces.add_child(s)
 					sprites[pos] = s
@@ -290,7 +318,7 @@ func start_promotion(piece_data):
 	is_promoting = true
 	var color = piece_data["color"]
 	for type in promotion_buttons:
-		promotion_buttons[type].icon = textures[color][type]
+		promotion_buttons[type].icon = piece_texture(color, type)
 	promotion_panel.visible = true
 	clear_temp_highlights()
 
@@ -298,12 +326,12 @@ func _on_promotion_selected(type):
 	board.commit_promotion(type)
 	promotion_panel.visible = false
 	is_promoting = false
-	
+
 	if pending_promotion_move_start != null and pending_promotion_move_end != null:
 		update_last_move_visuals(pending_promotion_move_start, pending_promotion_move_end)
 		pending_promotion_move_start = null
 		pending_promotion_move_end = null
-	
+
 	deselect_piece()
 	refresh_visuals()
 	record_fen()
@@ -312,25 +340,25 @@ func _on_promotion_selected(type):
 func revert_last_move():
 	var moves = board.get_moves()
 	if moves.size() == 0:
-		return 
-	
+		return
+
 	board.revert_move()
 	deselect_piece()
-	
+
 	if fen_history.size() > 1:
 		fen_history.pop_back()
-	
+
 	for s in last_move_sprites:
 		s.queue_free()
 	last_move_sprites.clear()
-	
+
 	var remaining_moves = board.get_moves()
 	if remaining_moves.size() > 0:
 		var last_uci = remaining_moves[remaining_moves.size() - 1]
 		var prev_move = parse_uci_move(last_uci)
 		if prev_move.size() == 2:
 			update_last_move_visuals(prev_move[0], prev_move[1])
-	
+
 	refresh_visuals()
 	print("\n\n" + "=".repeat(50) + "\n")
 	for fen in fen_history:
