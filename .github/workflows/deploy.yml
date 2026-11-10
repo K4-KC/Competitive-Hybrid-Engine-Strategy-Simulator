@@ -1,0 +1,218 @@
+name: "Build and Release"
+
+on:
+  push:
+    paths:
+      - 'C.H.E.S.S/CHANGELOGS.md'
+
+env:
+  GODOT_VERSION: "4.5"
+  ITCH_USER: "K4-KC"
+  ITCH_GAME: "chess"
+  GAME_TITLE: "Competitive Hybrid Engine Strategy Simulator"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows, linux, macos]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true # For large assets
+
+      # ---------------------------------------------------------
+      # STEP 0: Smart Changelog Parser
+      # ---------------------------------------------------------
+      - name: Parse Changelog
+        id: parse_data
+        shell: bash
+        run: |
+          FILE="C.H.E.S.S/CHANGELOGS.md"
+          
+          RAW_HEADER=$(grep -m 1 "^## " "$FILE")
+          TAG_NAME=$(echo "$RAW_HEADER" | sed 's/## //g' | xargs)
+          CLEAN_VERSION=${TAG_NAME#v}
+          
+          echo "Found Version: $TAG_NAME"
+          
+          BODY=$(awk '/^## / { if (p) { exit }; p=1; next } p' "$FILE")
+          
+          if [[ "$TAG_NAME" == *"-"* ]]; then
+            IS_PRE="true"
+          else
+            IS_PRE="false"
+          fi
+
+          echo "VERSION=$CLEAN_VERSION" >> $GITHUB_OUTPUT
+          echo "TAG=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "PRERELEASE=$IS_PRE" >> $GITHUB_OUTPUT
+          
+          echo "BODY<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # ---------------------------------------------------------
+      # STEP 1: Manual Import
+      # ---------------------------------------------------------
+      - name: Setup and Import Godot (Ignore Crash)
+        shell: bash
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-stable/Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64.zip
+          unzip -q Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64.zip
+          mv Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64 godot
+          chmod +x godot
+
+          echo "Starting Import..."
+          timeout 1m ./godot --headless --path ./C.H.E.S.S --editor --quit || true
+          
+          if [ -d "./C.H.E.S.S/.godot" ]; then
+              echo "✅ .godot folder exists."
+          else
+              echo "❌ .godot folder missing."
+              exit 1
+          fi
+
+      # ---------------------------------------------------------
+      # STEP 2: Export
+      # ---------------------------------------------------------
+      # 1. Clean the export folder to ensure no old files interfere
+      - name: Prepare Export Directory
+        run: |
+          rm -rf C.H.E.S.S/exports
+          mkdir -p C.H.E.S.S/exports
+
+      - name: Godot Export
+        uses: firebelley/godot-export@v5.2.1
+        with:
+          godot_executable_download_url: "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-stable/Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64.zip"
+          godot_export_templates_download_url: "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-stable/Godot_v${{ env.GODOT_VERSION }}-stable_export_templates.tpz"
+          relative_project_path: "./C.H.E.S.S"
+          archive_output: true
+          export_preset: ${{ matrix.platform }}
+          use_preset_export_path: true
+          cache: false
+          additional_args: "--headless"
+
+      # ---------------------------------------------------------
+      # STEP 3: Rename Artifact
+      # ---------------------------------------------------------
+      - name: Rename Exported File
+        id: rename_zip
+        shell: bash
+        run: |
+          # 1. Define the specific file we expect for THIS runner
+          # The logs confirm the action outputs files named: windows.zip, linux.zip, macos.zip
+          TARGET_FILE="${{ matrix.platform }}.zip"
+          OLD_PATH="C.H.E.S.S/exports/$TARGET_FILE"
+          
+          # 2. Check if the specific file exists
+          if [ ! -f "$OLD_PATH" ]; then
+            echo "❌ Could not find expected export: $OLD_PATH"
+            echo "📂 Contents of export directory:"
+            ls -R C.H.E.S.S/exports
+            exit 1
+          fi
+
+          # 3. Determine correct suffix for the final filename
+          PLATFORM="${{ matrix.platform }}"
+          if [ "$PLATFORM" == "windows" ]; then
+              SHORT_PLAT="win"
+          elif [ "$PLATFORM" == "macos" ]; then
+              SHORT_PLAT="mac"
+          else
+              SHORT_PLAT="linux"
+          fi
+
+          # 4. Create the unique name and rename
+          NEW_NAME="($SHORT_PLAT) ${{ env.GAME_TITLE }}.zip"
+          NEW_PATH="C.H.E.S.S/exports/$NEW_NAME"
+
+          mv "$OLD_PATH" "$NEW_PATH"
+          echo "✅ Renamed '$OLD_PATH' to: '$NEW_PATH'"
+          
+          # 5. (Optional) Cleanup other platform files to prevent confusion in artifacts
+
+          # Save path for subsequent steps
+          echo "GAME_PACKAGE_PATH=$NEW_PATH" >> $GITHUB_ENV
+
+      # ---------------------------------------------------------
+      # STEP 4: Publish to Itch.io
+      # ---------------------------------------------------------
+      - name: Publish to Itch.io
+        uses: yeslayla/butler-publish-itchio-action@master
+        env:
+          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_API_KEY }}
+          CHANNEL: ${{ matrix.platform }}
+          ITCH_GAME: ${{ env.ITCH_GAME }}
+          ITCH_USER: ${{ env.ITCH_USER }}
+          PACKAGE: ${{ env.GAME_PACKAGE_PATH }}
+          VERSION: ${{ steps.parse_data.outputs.VERSION }}
+      
+      # ---------------------------------------------------------
+      # STEP 5: GitHub Release
+      # ---------------------------------------------------------
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.parse_data.outputs.TAG }}
+          name: ${{ env.GAME_TITLE }} ${{ steps.parse_data.outputs.TAG }}
+          body: ${{ steps.parse_data.outputs.BODY }}
+          prerelease: ${{ steps.parse_data.outputs.PRERELEASE }}
+          files: ${{ env.GAME_PACKAGE_PATH }}
+
+      # ---------------------------------------------------------
+      # STEP 6: Notify Discord (Windows Only)
+      # ---------------------------------------------------------
+      - name: Notify Discord of Release
+        if: matrix.platform == 'windows'
+        shell: bash
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          VERSION: ${{ steps.parse_data.outputs.TAG }}
+          CHANGELOG: ${{ steps.parse_data.outputs.BODY }}
+          GITHUB_URL: "https://github.com/${{ github.repository }}/releases/tag/${{ steps.parse_data.outputs.TAG }}"
+          ITCH_URL: "https://${{ env.ITCH_USER }}.itch.io/${{ env.ITCH_GAME }}"
+        run: |
+          ESCAPED_LOGS=$(echo "$CHANGELOG" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
+          
+          PAYLOAD=$(cat <<EOF
+          {
+            "content": "🚀 **New Release Published!**",
+            "embeds": [
+              {
+                "title": "$VERSION",
+                "color": 5763719,
+                "url": "$ITCH_URL",
+                "description": "A new version of **C.H.E.S.S** is available!",
+                "thumbnail": {
+                  "url": "https://raw.githubusercontent.com/K4-KC/chess-ai/main/C.H.E.S.S/icon.png" 
+                },
+                "fields": [
+                  {
+                    "name": "📝 Release Notes",
+                    "value": "$ESCAPED_LOGS",
+                    "inline": false
+                  },
+                  {
+                    "name": "🔗 Links",
+                    "value": "[Download on Itch.io]($ITCH_URL) • [View on GitHub]($GITHUB_URL)",
+                    "inline": false
+                  }
+                ],
+                "footer": {
+                  "text": "Competitive Hybrid Engine Strategy Simulator • Automated Deploy"
+                }
+              }
+            ]
+          }
+          EOF
+          )
+          curl -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"

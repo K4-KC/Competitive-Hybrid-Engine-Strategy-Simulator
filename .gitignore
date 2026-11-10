@@ -1,0 +1,50 @@
+# OS System Files
+.DS_Store
+Thumbs.db
+.vs/
+.vscode/
+.idea/
+.claude/
+
+# Python Virtual Environments
+__pycache__/
+venv/
+.env
+
+# C++ Compilation Artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.pdb
+*.exp
+*.dSYM/
+.sconsign.dblite
+compile_commands.json
+build_cache/
+
+# Exported Game Binaries
+*.pck
+*.zip
+*.exe
+*.apk
+*.aab
+*.ipa
+
+# C.H.E.S.S
+C.H.E.S.S/.godot/
+C.H.E.S.S/*.translation
+C.H.E.S.S/bin/*
+!C.H.E.S.S/bin/*.gdextension
+!C.H.E.S.S/bin/*.gdextension.uid
+C.H.E.S.S/exports/
+C.H.E.S.S/addons/
+
+# Miscellaneous
+stockfish/
+godot-cpp/
+*.TMP
+*.code-workspace
+
+# Godot macOS export output (built into project root rather than exports/)
+/C.H.E.S.S/C.H.E.S.S. - Competitive Hybrid Engine Strategy Simulator (macOS)/

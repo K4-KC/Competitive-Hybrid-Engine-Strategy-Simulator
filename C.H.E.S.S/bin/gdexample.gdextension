@@ -1,0 +1,13 @@
+[configuration]
+
+entry_symbol = "chess_ai_library_init"
+compatibility_minimum = "4.5"
+
+[libraries]
+
+windows.debug.x86_64 = "res://bin/libkCC_modules.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://bin/libkCC_modules.windows.template_release.x86_64.dll"
+linux.debug.x86_64 = "res://bin/libkCC_modules.linux.template_debug.x86_64.so"
+linux.release.x86_64 = "res://bin/libkCC_modules.linux.template_release.x86_64.so"
+macos.debug = "res://bin/libkCC_modules.macos.template_debug.universal.so"
+macos.release = "res://bin/libkCC_modules.macos.template_release.universal.so"
