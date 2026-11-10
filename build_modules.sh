@@ -9,6 +9,10 @@
 # NOTES:
 # - Windows builds require MinGW-w64: 'sudo apt install mingw-w64'
 # - macOS builds require OSXCross toolchain (optional, will skip if not found)
+#   OSXCross also needs a macOS SDK to be built. If it is not found (expected
+#   at $OSXCROSS_ROOT, default /opt/osxcross), the macOS target is skipped with
+#   a warning and no macOS binaries are produced. To get them, run
+#   build_modules_macos.sh natively on a Mac instead.
 # ==============================================================================
 
 # Determine the number of available CPU cores for parallel compilation (speed boost)
