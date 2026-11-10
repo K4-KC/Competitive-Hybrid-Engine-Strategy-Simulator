@@ -42,7 +42,7 @@ C.H.E.S.S/addons/
 
 # Miscellaneous
 stockfish/
-godot-cpp/
+/godot-cpp
 *.TMP
 *.code-workspace
 
